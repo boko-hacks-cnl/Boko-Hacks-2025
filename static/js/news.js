@@ -121,6 +121,12 @@ function fetchNews(category, customUrl = null) {
         });
 }
 
+function sanitizeHtml(html) {
+    const temp = document.createElement('div');
+    temp.textContent = html;
+    return temp.innerHTML;
+}
+
 function renderNews(data) {
     const newsContainer = document.getElementById('news-root');
     const newsList = newsContainer.querySelector('.news-list');
@@ -138,15 +144,19 @@ function renderNews(data) {
     newsItems.forEach(item => {
         const date = new Date(item.date || new Date()).toLocaleDateString();
         const hasImage = item.imageUrl && item.imageUrl !== 'null';
+        const safeTitle = sanitizeHtml(item.title);
+        const safeContent = sanitizeHtml(item.content);
+        const safeImageUrl = item.imageUrl ? encodeURI(item.imageUrl) : '';
+        const safeReadMoreUrl = item.readMoreUrl ? encodeURI(item.readMoreUrl) : '#';
 
         html += `
             <div class="news-item">
-                <div class="news-title">${item.title}</div>
-                ${hasImage ? `<div class="news-image"><img src="${item.imageUrl}" alt="${item.title}"></div>` : ''}
-                <div class="news-content">${item.content}</div>
+                <div class="news-title">${safeTitle}</div>
+                ${hasImage ? `<div class="news-image"><img src="${safeImageUrl}" alt="${safeTitle}"></div>` : ''}
+                <div class="news-content">${safeContent}</div>
                 <div class="news-meta">
                     <span>${date}</span>
-                    <a href="${item.readMoreUrl}" target="_blank" class="read-more">Read more</a>
+                    <a href="${safeReadMoreUrl}" target="_blank" class="read-more">Read more</a>
                 </div>
             </div>
         `;

@@ -1,16 +1,12 @@
 import time
 
 from flask import Blueprint, jsonify, render_template, request, session
+from models.retirement_account import RetirementAccount
+from models.user import User
+from extensions import db
+import logging
 
 retirement_bp = Blueprint("retirement", __name__, url_prefix="/apps/401k")
-
-user_accounts = {
-    "alice": {"funds": 10000, "401k_balance": 5000},
-    "bob": {"funds": 12000, "401k_balance": 7500},
-    "charlie": {"funds": 15000, "401k_balance": 8084},
-    "admin": {"funds": 20000, "401k_balance": 12000},
-}
-
 
 @retirement_bp.route("/")
 def retirement_dashboard():
@@ -25,10 +21,25 @@ def get_balance():
         return jsonify({"error": "Not logged in"}), 401
 
     username = session["user"]
-    if username not in user_accounts:
-        user_accounts[username] = {"funds": 10000, "401k_balance": 0}
-
-    return jsonify(user_accounts[username])
+    user = User.query.filter_by(username=username).first()
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    account = RetirementAccount.query.filter_by(user_id=user.id).first()
+    
+    # Create account if it doesn't exist
+    if not account:
+        account = RetirementAccount(user_id=user.id)
+        db.session.add(account)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to create account: {str(e)}")
+            return jsonify({"error": "Failed to create account"}), 500
+        
+    return jsonify(account.to_dict())
 
 
 @retirement_bp.route("/contribute", methods=["POST"])
@@ -40,44 +51,57 @@ def contribute():
     amount = data.get("amount", 0)
 
     username = session["user"]
-    if username not in user_accounts:
-        user_accounts[username] = {"funds": 10000, "401k_balance": 0}
-
-    user_data = user_accounts[username]
-
+    user = User.query.filter_by(username=username).first()
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    account = RetirementAccount.query.filter_by(user_id=user.id).first()
+    
+    # Create account if it doesn't exist
+    if not account:
+        account = RetirementAccount(user_id=user.id)
+        db.session.add(account)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to create account: {str(e)}")
+            return jsonify({"error": "Failed to create account"}), 500
+    
     if amount <= 0:
-        return jsonify(
-            {
-                "message": "Invalid contribution amount!",
-                "funds": user_data["funds"],
-                "401k_balance": user_data["401k_balance"],
-            }
-        ), 400
+        return jsonify({
+            "message": "Invalid contribution amount!",
+            "funds": account.funds,
+            "401k_balance": account.retirement_balance
+        }), 400
 
-    if amount > user_data["funds"]:
-        return jsonify(
-            {
-                "message": "Insufficient personal funds for this contribution!",
-                "funds": user_data["funds"],
-                "401k_balance": user_data["401k_balance"],
-            }
-        ), 400
+    if amount > account.funds:
+        return jsonify({
+            "message": "Insufficient personal funds for this contribution!",
+            "funds": account.funds, 
+            "401k_balance": account.retirement_balance
+        }), 400
 
-    time.sleep(2)
+    # Implementing atomic transaction with db.session to prevent race conditions
+    try:
+        company_match = amount * 0.5
+        total_contribution = amount + company_match
 
-    company_match = amount * 0.5
-    total_contribution = amount + company_match
-
-    user_data["funds"] -= amount  # Deduct funds
-    user_data["401k_balance"] += total_contribution  # Add to 401k balance
-
-    return jsonify(
-        {
+        account.funds -= amount  # Deduct funds
+        account.retirement_balance += total_contribution  # Add to 401k balance
+        
+        db.session.commit()
+        
+        return jsonify({
             "message": f"Contributed ${amount}. Employer matched ${company_match}!",
-            "funds": user_data["funds"],
-            "401k_balance": user_data["401k_balance"],
-        }
-    )
+            "funds": account.funds,
+            "401k_balance": account.retirement_balance
+        })
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Transaction failed: {str(e)}")
+        return jsonify({"error": "Transaction failed"}), 500
 
 
 @retirement_bp.route("/reset", methods=["POST"])
@@ -86,17 +110,29 @@ def reset_account():
         return jsonify({"error": "Not logged in"}), 401
 
     username = session["user"]
-    if username not in user_accounts:
-        return jsonify(
-            {"message": "Account not found!", "funds": 0, "401k_balance": 0}
-        ), 404
+    user = User.query.filter_by(username=username).first()
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+        
+    account = RetirementAccount.query.filter_by(user_id=user.id).first()
+    
+    if not account:
+        account = RetirementAccount(user_id=user.id)
+        db.session.add(account)
+    else:
+        account.funds = 10000
+        account.retirement_balance = 0
+        
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to reset account: {str(e)}")
+        return jsonify({"error": "Failed to reset account"}), 500
 
-    user_accounts[username] = {"funds": 10000, "401k_balance": 0}
-
-    return jsonify(
-        {
-            "message": "Account reset successfully!",
-            "funds": user_accounts[username]["funds"],
-            "401k_balance": user_accounts[username]["401k_balance"],
-        }
-    )
+    return jsonify({
+        "message": "Account reset successfully!",
+        "funds": account.funds,
+        "401k_balance": account.retirement_balance
+    })

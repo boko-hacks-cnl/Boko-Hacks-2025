@@ -166,8 +166,8 @@
                     <span class="form-title">Create New Note</span>
                     <span class="beta-tag">BETA</span>
                 </div>
-                <input type="text" name="title" id="note-title" placeholder="Enter title (supports custom formatting)" required>
-                <textarea name="content" id="note-content" placeholder="Enter your note content here. Pro tip: You can use special characters for formatting!" required></textarea>
+                <input type="text" name="title" id="note-title" placeholder="Enter title" required maxlength="100">
+                <textarea name="content" id="note-content" placeholder="Enter your note content here" required maxlength="5000"></textarea>
                 <div class="format-hint">Need formatting help? Try using special characters!</div>
                 <button type="submit">Save Note</button>
             </form>
@@ -180,8 +180,8 @@
             <div id="notes-list">
                 {% for note in notes %}
                 <div class="note-card">
-                    <h3>{{ note.title | safe }}</h3>
-                    <div class="note-content">{{ note.content | safe }}</div>
+                    <h3>{{ note.title }}</h3>
+                    <div class="note-content">{{ note.content }}</div>
                     <div class="note-meta">
                         ID: {{ note.id }} | Created: {{ note.created_at }}
                         <button type="button" class="delete-btn" data-note-id="{{ note.id }}">Delete</button>
@@ -253,8 +253,8 @@
                 return;
             }
 
-            const title = titleInput.value;
-            const content = contentInput.value;
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
 
             if (!title || !content) {
                 showMessage('error', 'Title and content are required');
@@ -287,14 +287,28 @@
 
                     const noteElement = document.createElement('div');
                     noteElement.className = 'note-card';
-                    noteElement.innerHTML = `
-                        <h3>${note.title}</h3>
-                        <div class="note-content">${note.content}</div>
-                        <div class="note-meta">
-                            ID: ${note.id} | Created: ${note.created_at}
-                            <button type="button" class="delete-btn" data-note-id="${note.id}">Delete</button>
-                        </div>
-                    `;
+                    
+                    const titleElm = document.createElement('h3');
+                    titleElm.textContent = note.title;
+                    
+                    const contentElm = document.createElement('div');
+                    contentElm.className = 'note-content';
+                    contentElm.textContent = note.content;
+                    
+                    const metaElm = document.createElement('div');
+                    metaElm.className = 'note-meta';
+                    metaElm.textContent = `ID: ${note.id} | Created: ${note.created_at} `;
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.setAttribute('data-note-id', note.id);
+                    
+                    metaElm.appendChild(deleteBtn);
+                    noteElement.appendChild(titleElm);
+                    noteElement.appendChild(contentElm);
+                    noteElement.appendChild(metaElm);
 
                     const noNotes = notesList.querySelector('p');
                     if (noNotes && noNotes.textContent.includes('No notes found')) {
@@ -303,13 +317,10 @@
 
                     notesList.insertBefore(noteElement, notesList.firstChild);
 
-                    const deleteBtn = noteElement.querySelector('.delete-btn');
-                    if (deleteBtn) {
-                        deleteBtn.addEventListener('click', function() {
-                            const noteId = this.getAttribute('data-note-id');
-                            deleteNote(noteId);
-                        });
-                    }
+                    deleteBtn.addEventListener('click', function() {
+                        const noteId = this.getAttribute('data-note-id');
+                        deleteNote(noteId);
+                    });
 
                     console.log('Note added successfully');
                 } else {
@@ -323,7 +334,7 @@
         }
 
         function searchNotes() {
-            const query = document.getElementById('search').value;
+            const query = document.getElementById('search').value.trim();
             console.log('Searching for:', query);
 
             fetch(`/apps/notes/search?q=${encodeURIComponent(query)}`)
@@ -343,19 +354,32 @@
                         data.notes.forEach(note => {
                             const noteElement = document.createElement('div');
                             noteElement.className = 'note-card';
-                            noteElement.innerHTML = `
-                                <h3>${note.title}</h3>
-                                <div class="note-content">${note.content}</div>
-                                <div class="note-meta">
-                                    ID: ${note.id} | Created: ${note.created_at}
-                                    <button type="button" class="delete-btn" data-note-id="${note.id}">Delete</button>
-                                </div>
-                            `;
+                            
+                            const titleEl = document.createElement('h3');
+                            titleEl.textContent = note.title;
+                            
+                            const contentEl = document.createElement('div');
+                            contentEl.className = 'note-content';
+                            contentEl.textContent = note.content;
+                            
+                            const metaEl = document.createElement('div');
+                            metaEl.className = 'note-meta';
+                            metaEl.textContent = `ID: ${note.id} | Created: ${note.created_at} `;
+                            
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.type = 'button';
+                            deleteBtn.className = 'delete-btn';
+                            deleteBtn.textContent = 'Delete';
+                            deleteBtn.setAttribute('data-note-id', note.id);
+                            
+                            metaEl.appendChild(deleteBtn);
+                            noteElement.appendChild(titleEl);
+                            noteElement.appendChild(contentEl);
+                            noteElement.appendChild(metaEl);
+                            
                             notesList.appendChild(noteElement);
-                        });
-
-                        document.querySelectorAll('.delete-btn').forEach(button => {
-                            button.addEventListener('click', function() {
+                            
+                            deleteBtn.addEventListener('click', function() {
                                 const noteId = this.getAttribute('data-note-id');
                                 deleteNote(noteId);
                             });

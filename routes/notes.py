@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import bleach  # Add this import for XSS protection
 from flask import Blueprint, jsonify, render_template, request, session
 from sqlalchemy import text
 
@@ -24,6 +25,9 @@ def notes():
 
     try:
         user_id = int(user_id)
+        # Fix: Add access control - only allow viewing own notes or admin access
+        if user_id != current_user.id and not current_user.is_admin():
+            return jsonify({"success": False, "error": "Unauthorized access"}), 403
     except (TypeError, ValueError):
         user_id = current_user.id
 
@@ -39,7 +43,7 @@ def notes():
 
 @notes_bp.route("/create", methods=["POST"])
 def create_note():
-    """Create a new note - Intentionally vulnerable to XSS"""
+    """Create a new note - Fixed XSS vulnerability"""
     if "user" not in session:
         return jsonify({"success": False, "error": "Not logged in"}), 401
 
@@ -47,8 +51,9 @@ def create_note():
     if not current_user:
         return jsonify({"success": False, "error": "User not found"}), 404
 
-    title = request.form.get("title")
-    content = request.form.get("content")
+    # Fix: Sanitize user input to prevent XSS
+    title = bleach.clean(request.form.get("title", ""))
+    content = bleach.clean(request.form.get("content", ""))
 
     if not title or not content:
         return jsonify(
@@ -57,6 +62,32 @@ def create_note():
 
     try:
         print(f"Creating note - Title: {title}, Content: {content}")
+
+        # Validate title and content length
+        max_title_length = 100
+        max_content_length = 5000
+
+        if len(title) > max_title_length:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": f"Title exceeds maximum length of {max_title_length} characters",
+                    }
+                ),
+                400,
+            )
+
+        if len(content) > max_content_length:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": f"Content exceeds maximum length of {max_content_length} characters",
+                    }
+                ),
+                400,
+            )
 
         note = Note(
             title=title,
@@ -91,7 +122,7 @@ def create_note():
 
 @notes_bp.route("/search")
 def search_notes():
-    """Search notes with intentional SQL injection vulnerability"""
+    """Search notes - Fixed SQL injection vulnerability and user access control"""
     if "user" not in session:
         return jsonify({"success": False, "error": "Not logged in"}), 401
 
@@ -103,13 +134,13 @@ def search_notes():
     print(f"Search query: {query}")
 
     try:
-        sql = f"SELECT * FROM notes WHERE title LIKE '%{query}%' OR content LIKE '%{query}%'"
-
-        # Log the raw SQL for debugging
-        print(f"Executing SQL: {sql}")
-
-        # Execute the raw SQL
-        result = db.session.execute(text(sql))
+        # Fix: Use parameterized query and add user_id filter for proper access control
+        sql = text(
+            "SELECT * FROM notes WHERE (title LIKE :query OR content LIKE :query) AND user_id = :user_id"
+        )
+        result = db.session.execute(
+            sql, {"query": f"%{query}%", "user_id": current_user.id}
+        )
 
         notes = []
         for row in result:
@@ -144,7 +175,7 @@ def search_notes():
 
 @notes_bp.route("/delete/<int:note_id>", methods=["DELETE"])
 def delete_note(note_id):
-    """Delete a note with intentional access control vulnerability"""
+    """Delete a note - Fixed access control vulnerability"""
     if "user" not in session:
         return jsonify({"success": False, "error": "Not logged in"}), 401
 
@@ -159,6 +190,13 @@ def delete_note(note_id):
             return jsonify(
                 {"success": False, "error": f"Note with ID {note_id} not found"}
             ), 404
+
+        # Fix: Add proper authorization check
+        if note.user_id != current_user.id and not current_user.is_admin():
+            print(
+                f"Unauthorized deletion attempt of note {note_id} by user {current_user.id}"
+            )
+            return jsonify({"success": False, "error": "Unauthorized"}), 403
 
         print(
             f"Deleting note ID: {note_id}, Title: {note.title}, Owner: {note.user_id}"
@@ -177,7 +215,15 @@ def delete_note(note_id):
 
 @notes_bp.route("/debug")
 def debug_database():
-    """Debug route to check database contents"""
+    """Debug route to check database contents - Fixed information disclosure"""
+    # Fix: Add admin-only check
+    if "user" not in session:
+        return jsonify({"success": False, "error": "Not logged in"}), 401
+
+    current_user = User.query.filter_by(username=session["user"]).first()
+    if not current_user or not current_user.is_admin():
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
     try:
         users = User.query.all()
         print("\nAll Users:")

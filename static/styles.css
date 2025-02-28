@@ -348,7 +348,7 @@ a.btn:hover {
   background-color: var(--maroon-light);
 }
 
-.success-message, .error-message {
+.success-message, .error-message, .info-message {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -366,4 +366,8 @@ a.btn:hover {
 
 .error-message {
   background-color: #F44336; /* Red */
+}
+
+.info-message {
+  background-color: #2196F3; /* Blue */
 }

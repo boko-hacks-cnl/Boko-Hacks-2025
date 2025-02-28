@@ -1,7 +1,7 @@
 import json
 
 import requests
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, session
 
 news_bp = Blueprint("news", __name__, url_prefix="/apps/news")
 
@@ -34,7 +34,7 @@ INTERNAL_NEWS = [
     },
     {
         "title": "CONFIDENTIAL: Internal API Credentials",
-        "description": "API_KEY: 5x6hdPQmSK2aT9E3bL8nZ7yRfV4wX1  ADMIN_KEY: jKq2P8zX5sW7vT1yR4aB9nL6cE3hG",
+        "description": "Check the internal credential manager for the latest API keys and secrets.",
         "url": "#internal-only",
         "publishedAt": "2025-01-30T14:45:00Z",
         "urlToImage": "",
@@ -75,9 +75,14 @@ def fetch_news():
                 print(f"Filter options: {filter_options}")
 
                 if filter_options.get("showInternal"):
-                    # Add internal news to the results
-                    print("Adding internal news to results!")
-                    articles = INTERNAL_NEWS + articles
+                    is_admin = session.get("admin_logged_in", False)
+                    if is_admin:
+                        # Add internal news to the results
+                        print("Adding internal news to results!")
+                        articles = INTERNAL_NEWS + articles
+                    else:
+                        print("Admin not logged in, skipping internal news")
+                        
             except json.JSONDecodeError:
                 print(f"Invalid filter parameter: {filter_param}")
 

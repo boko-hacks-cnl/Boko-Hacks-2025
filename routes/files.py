@@ -85,6 +85,15 @@ def upload_file():
         if not allowed_mimetype(file.mimetype):
             print(f"File type not allowed: {file.mimetype}")
             return jsonify({"success": False, "error": "File type not allowed"}), 400
+        
+        # Check file size
+        file.seek(0, os.SEEK_END)
+        file_length = file.tell()
+        file.seek(0, os.SEEK_SET)
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+        if file_length > MAX_FILE_SIZE:
+            print(f"File size exceeds limit: {file_length} bytes")
+            return jsonify({"success": False, "error": "File size exceeds limit"}), 400
 
         filename = secure_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, filename)

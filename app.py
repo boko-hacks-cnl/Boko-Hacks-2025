@@ -1,5 +1,6 @@
 import os
 
+from dotenv import load_dotenv
 from flask import Flask
 from sqlalchemy import inspect
 
@@ -17,8 +18,10 @@ from routes.notes import notes_bp
 from routes.register import register_bp
 from routes.retirement import retirement_bp
 
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = os.environ.get("SECRET_KEY", "fallback_secret_key_dev")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///boko_hacks.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

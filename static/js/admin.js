@@ -234,7 +234,15 @@ function initializeApp() {
 
     function showMessage(message, type = 'error') {
         const messageArea = document.getElementById('message-area');
-        messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+        
+        messageArea.textContent = '';
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        messageDiv.textContent = message;
+        
+        messageArea.appendChild(messageDiv);
+        
         setTimeout(() => messageArea.innerHTML = '', 5000);
     }
 
@@ -250,12 +258,34 @@ function initializeApp() {
         admins.forEach(admin => {
             const adminItem = document.createElement('div');
             adminItem.className = 'admin-item';
-            adminItem.innerHTML = `
-                <span>${admin[1]} ${admin[2] ? '<small>(Default Admin)</small>' : ''}</span>
-                ${admin[2] ? '<span>Protected</span>' : `
-                    <button onclick="removeAdmin(${admin[0]})" class="action-btn">Remove</button>
-                `}
-            `;
+
+            const adminNameSpan = document.createElement('span');
+            adminNameSpan.textContent = admin[1];
+
+            if (admin[2]) {
+                const smallEl = document.createElement('small');
+                smallEl.textContent = ' (Default Admin)';
+                adminNameSpan.appendChild(smallEl);
+            }
+            
+            adminItem.appendChild(adminNameSpan);
+
+            if (admin[2]) {
+                const protectedSpan = document.createElement('span');
+                protectedSpan.textContent = 'Protected';
+                adminItem.appendChild(protectedSpan);
+            } else {
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'action-btn';
+                removeBtn.textContent = 'Remove';
+
+                removeBtn.addEventListener('click', function() {
+                    removeAdmin(admin[0]);
+                });
+                
+                adminItem.appendChild(removeBtn);
+            }
+            
             adminList.appendChild(adminItem);
         });
     }
@@ -284,13 +314,33 @@ function initializeApp() {
                 regularUsers.forEach(user => {
                     const userItem = document.createElement('div');
                     userItem.className = 'user-item';
-                    userItem.innerHTML = `
-                      <span>${user.username}</span>
-                      <div>
-                          <button onclick="resetPassword(${user.id})" class="action-btn">Reset Password</button>
-                          <button onclick="deleteUser(${user.id})" class="action-btn">Delete</button>
-                      </div>
-                    `;
+
+                    const usernameSpan = document.createElement('span');
+                    usernameSpan.textContent = user.username;
+                    userItem.appendChild(usernameSpan);                    
+
+                    const buttonsDiv = document.createElement('div');
+
+                    const resetBtn = document.createElement('button');
+                    resetBtn.className = 'action-btn';
+                    resetBtn.textContent = 'Reset Password';
+
+                    resetBtn.addEventListener('click', function() {
+                        resetPassword(user.id);
+                    });
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'action-btn';
+                    deleteBtn.textContent = 'Delete';
+
+                    deleteBtn.addEventListener('click', function() {
+                        deleteUser(user.id);
+                    });
+                    
+                    buttonsDiv.appendChild(resetBtn);
+                    buttonsDiv.appendChild(deleteBtn);
+                    userItem.appendChild(buttonsDiv);
+                    
                     userList.appendChild(userItem);
                 });
             } else {

@@ -10,3 +10,4 @@ instance/boko_hacks.db
 uploads/
 tools/
 venv
+.env

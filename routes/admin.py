@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from flask import Blueprint, jsonify, render_template, request, session
 
 from extensions import db
@@ -6,7 +9,14 @@ from models.user import User
 
 admin_bp = Blueprint("admin", __name__)
 
-DEFAULT_ADMIN = {"username": "admin", "password": "password"}
+# Load environment variables
+load_dotenv()
+
+# Get admin credentials from environment variables or use defaults
+DEFAULT_ADMIN = {
+    "username": os.environ.get("ADMIN_USERNAME", "admin"),
+    "password": os.environ.get("ADMIN_PASSWORD"),
+}
 
 
 def init_admin_db():
@@ -92,8 +102,10 @@ def admin():
                 )
 
         try:
-            query = f"SELECT * FROM users WHERE username = '{username}' AND password_hash = '{password}'"
-            result = db.session.execute(query)
+            query = "SELECT * FROM users WHERE username = :username AND password_hash = :password"
+            result = db.session.execute(
+                query, {"username": username, "password": password}
+            )
             user_data = result.fetchone()
 
             if user_data:
